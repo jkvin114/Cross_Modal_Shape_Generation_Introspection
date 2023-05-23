@@ -9,7 +9,7 @@ import models.embeddings
 import toolbox.lr_scheduler
 from edit3d.trainers.base_trainer import BaseTrainer
 from edit3d.trainers.losses import laploss
-from edit3d import device
+from edit3d import device, free
 
 
 def KLD(mu, logvar):
@@ -293,6 +293,9 @@ class Trainer(BaseTrainer):
         dists_deepsdf = dists_deepsdf.squeeze(-1)
         loss_fine_shape = torch.mean(self.lossfun_fine(dists_deepsdf, dists_gt_fine))
 
+        del dists_deepsdf, dists_gt_fine
+        free()
+
         # ColorSDF
         self.optim_colorsdf.zero_grad()
         color_gt_fine = data_f[..., 4:7].squeeze(-1)
@@ -302,10 +305,16 @@ class Trainer(BaseTrainer):
             rgb_colorsdf = self._forward_colorsdf(latent_codes_fine_color, shape_feat.detach(), pts_fine).squeeze(-1)
         loss_color3D = torch.mean(self.lossfun_color3D(color_gt_fine, rgb_colorsdf))
 
+        del color_gt_fine, rgb_colorsdf
+        free()
+
         # sketch generator
         self.optim_imgen.zero_grad()
         im_logits, im_samples = self._forward_imgen(latent_codes_coarse_shape)
         loss_sketch = torch.mean(self.lossfun_sketch(im_logits, data_sketch))
+
+        del im_logits, data_sketch
+        free()
 
         # color image generator
         self.optim_colorgen.zero_grad()
@@ -314,6 +323,9 @@ class Trainer(BaseTrainer):
         lap_loss = laploss(im_samples, data_color2d)
         mse_loss = F.mse_loss(im_samples, data_color2d)
         loss_color2D = lap_loss + mse_loss
+
+        del im_samples, data_color2d
+        free()
 
         loss = 0.5 * (
             loss_fine_shape * self.cfg.trainer.loss_fine_shape.weight
