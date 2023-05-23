@@ -12,7 +12,7 @@ import torchvision
 import yaml
 from tensorboardX import SummaryWriter
 
-from edit3d import device
+from edit3d import device, CUDA_DEVICE, free
 from edit3d.utils.utils import dict2namespace
 import logging
 
@@ -125,6 +125,10 @@ def main(args, cfg):
 
                 # checkpoints
                 trainer.save(epoch=epoch, step=step_cnt)
+                del grid_sample, renders, grid_sample, grid_gt, im_data
+
+            del data
+            free()
 
         trainer.epoch_end(epoch, writer=writer)
 

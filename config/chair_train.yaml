@@ -4,10 +4,7 @@ resume:
 data:
     type: edit3d.multimodal
     cate_id: "03001627" # Chair
-#    sketch_name: "sketch-F-2.png"
     split_files:
-#        train: ./datasets/splits/sv2_chairs_train.json
-#        test: ./datasets/splits/sv2_chairs_test.json
         train: ./datasets/splits/sv2_chairs_train_small.json
         test: ./datasets/splits/sv2_chairs_test_small.json
     sdf_data_dir:
@@ -20,7 +17,7 @@ data:
             fine: 2048
             coarse: 1024
         num_repeats: 1
-        batch_size: 32
+        batch_size: 16
         num_workers: 4
         imsize: 128
     test:
@@ -29,8 +26,8 @@ data:
             fine: 2048
             coarse: 1024
         num_repeats: 100
-        batch_size: 32
-        subset: 32
+        batch_size: 16
+        subset: 16
         num_workers: 4
         imsize: 128  
 
