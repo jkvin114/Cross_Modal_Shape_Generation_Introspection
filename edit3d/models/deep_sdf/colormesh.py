@@ -10,7 +10,7 @@ import plyfile
 import skimage.measure
 import torch
 
-from edit3d import CUDA_DEVICE
+from edit3d import device, CUDA_DEVICE
 from edit3d.models import deep_sdf
 import logging
 
@@ -27,7 +27,7 @@ def create_mesh(
     max_batch=32 ** 3,
     offset=None,
     scale=None,
-    device=CUDA_DEVICE,
+    device=device,
 ):
     start = time.time()
     ply_filename = filename
@@ -64,17 +64,17 @@ def create_mesh(
     while head < num_samples:
         sample_subset = samples[head : min(head + max_batch, num_samples), 0:3]
 
-        if device == CUDA_DEVICE:
-            sample_subset = sample_subset.cuda()
+        sample_subset = sample_subset.to(device)
 
         sdf, color3d = deep_sdf.utils.decode_colorsdf2(deepsdf, colorsdf, shape_code, color_code, sample_subset)
         sdf = sdf.squeeze(1).detach().cpu()
         samples[head : min(head + max_batch, num_samples), 3] = sdf
         samples[head : min(head + max_batch, num_samples), 4:] = color3d
         head += max_batch
-        del sample_subset
-        torch.cuda.empty_cache()
-        torch.cuda.synchronize()
+        if device == CUDA_DEVICE:
+            del sample_subset
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
 
     sdf_values = samples[:, 3]
     sdf_values = sdf_values.reshape(N, N, N)
@@ -119,8 +119,8 @@ def convert_sdf_samples_to_ply(
     numpy_3d_sdf_tensor = pytorch_3d_sdf_tensor.numpy()
     numpy_3d_color_tensor = pytorch_3d_color_tensor.numpy()
 
-    verts, faces, normals, values = skimage.measure.marching_cubes_lewiner(
-        numpy_3d_sdf_tensor, level=0.0, spacing=[voxel_size] * 3
+    verts, faces, normals, values = skimage.measure.marching_cubes(
+        numpy_3d_sdf_tensor, spacing=[voxel_size] * 3
     )
     num_verts = verts.shape[0]
     num_faces = faces.shape[0]

@@ -60,8 +60,8 @@ def save_init(trainer, latent, outdir, imname, colormesh=True):
             deep_sdf.colormesh.create_mesh(
                 trainer.deepsdf_net,
                 trainer.colorsdf_net,
-                shape_code,
-                color_code,
+                shape_code.to(device),
+                color_code.to(device),
                 colormesh_filename,
                 N=256,
                 max_batch=int(2 ** 18),
@@ -70,7 +70,7 @@ def save_init(trainer, latent, outdir, imname, colormesh=True):
         with torch.no_grad():
             deep_sdf.mesh.create_mesh(
                 trainer.deepsdf_net,
-                shape_code,
+                shape_code.to(device),
                 mesh_filename,
                 N=256,
                 max_batch=int(2 ** 18),
@@ -165,32 +165,32 @@ def main(args, cfg):
 
     os.makedirs(args.outdir, exist_ok=True)
 
-    if args.category == "airplane":
+    if "plane" in args.category:
         prefix = "sketch-T-2"
-    elif args.category == "chair":
+    elif "chair" in args.category:
         prefix = "sketch-F-2"
     else:
         logger.error("Only airplane and chair are supported categories")
         raise Exception(f"No such category: {args.category}")
 
     for imname in os.listdir(source_dir):
-
         source_path = os.path.join(source_dir, imname)
         logger.info("Edit 3D from %s ..." % source_path)
         for editid in range(1, 10):
             logger.debug(editid)
             data = load_image_and_sketch(source_dir, editid, prefix)
-            if data is None or (imname not in trainer.sid2idx.keys()):
+            shapeid = os.path.basename(source_dir)
+            if data is None or (shapeid not in trainer.sid2idx.keys()):
                 continue
 
             targetdir = os.path.join(args.outdir, imname, str(editid))
             os.makedirs(targetdir, exist_ok=True)
 
             # save init
-            source_latent = trainer.get_known_latent(trainer.sid2idx[imname])
+            source_latent = trainer.get_known_latent(trainer.sid2idx[shapeid])
             initdir = os.path.join(targetdir, "init")
             os.makedirs(initdir, exist_ok=True)
-            save_init(trainer, source_latent, initdir, imname + "_init")
+            save_init(trainer, source_latent, initdir, shapeid + "_init")
 
             # editing
             edit_latent, color_code = edit(
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     parser.add_argument("--pretrained", default=None, type=str, help="pretrained model checkpoint")
     parser.add_argument("--outdir", default=None, type=str, help="path of output")
     parser.add_argument("--category", default="airplane", type=str, help="path of output")
-    parser.add_argument("--source_dir", default=None, type=str, help="a text file the lists image")
+    parser.add_argument("--source_dir", default=None, type=str, help="The image dir.")
     parser.add_argument("--trial", default=20, type=int)
     parser.add_argument("--editid", default=1, type=int)
     parser.add_argument("--beta", default=0.5, type=float)

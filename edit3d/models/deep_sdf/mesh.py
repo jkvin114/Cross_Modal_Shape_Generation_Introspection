@@ -46,16 +46,17 @@ def create_mesh(decoder, latent_vec, filename, N=256, max_batch=32 ** 3, offset=
 
     while head < num_samples:
         sample_subset = samples[head : min(head + max_batch, num_samples), 0:3]
-        if device == CUDA_DEVICE:
-            sample_subset = sample_subset.cuda()
+
+        sample_subset = sample_subset.to(device)
 
         samples[head : min(head + max_batch, num_samples), 3] = (
             deep_sdf.utils.decode_colorsdf(decoder, latent_vec, sample_subset).squeeze(1).detach().cpu()
         )
         head += max_batch
-        del sample_subset
-        torch.cuda.empty_cache()
-        torch.cuda.synchronize()
+        if device == CUDA_DEVICE:
+            del sample_subset
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
 
     sdf_values = samples[:, 3]
     sdf_values = sdf_values.reshape(N, N, N)
