@@ -9,6 +9,7 @@ import models.embeddings
 import toolbox.lr_scheduler
 from edit3d.trainers.base_trainer import BaseTrainer
 from edit3d.trainers.losses import laploss
+from edit3d import device
 
 
 def KLD(mu, logvar):
@@ -209,7 +210,7 @@ class Trainer(BaseTrainer):
         if "latent_code_augment" in batch_latent_dict.keys():
             batch_latent_aug = batch_latent_dict["latent_code_augment"]
         else:
-            batch_latent_aug = batch_latent
+            batch_latent_aug = batch_latent.to(self.device)
         return (
             batch_latent,
             batch_latent_aug,

@@ -242,23 +242,23 @@ class Trainer(CrossModalTrainer):
 
         for i in range(epoch):
             optim.zero_grad()
-            _, sketch = self.imgen_net(latent_codes_coarse)
+            _, sketch = self.imgen_net(latent_codes_shape)
             loss_manip, loss_kld = self.manip_fun(
                 sketch,
                 target,
                 mask,
-                latent_codes_coarse,
+                latent_codes_shape,
                 gamma=gamma,
                 beta=beta,
-                alphas=alphas,
+                # alphas=alphas,
             )
             loss_manip.backward()
             if i % 100 == 0:
                 print(i, loss_manip.item(), loss_kld.item())
             optim.step()
-            latent_codes.append(latent_codes_coarse.detach().clone())
+            latent_codes.append(latent_codes_shape.detach().clone())
 
-        return latent_codes, loss_recon
+        return latent_codes, loss_manip
 
     def step_edit_sketch(self, feat_shape, target, mask=None, gamma=0.02, beta=0.5, epoch=1001):
         if mask == None:
