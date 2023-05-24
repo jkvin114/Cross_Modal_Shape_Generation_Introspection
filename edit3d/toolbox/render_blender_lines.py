@@ -11,8 +11,6 @@ import argparse, sys, os, math, re
 import bpy
 import json
 import random
-from glob import glob
-
 import numpy as np
 
 
@@ -96,7 +94,6 @@ def setup_camera() -> (bpy.types.Camera, bpy.types.Camera):
 
 def add_line_art(obj):
     set_active_object(obj)
-
     try:
         gpencil = bpy.context.scene.objects['GPencil']
         gpencil.grease_pencil_modifiers["Line Art"].source_object = obj
@@ -108,26 +105,28 @@ def add_line_art(obj):
         gpencil.grease_pencil_modifiers["Line Art"].source_type = 'OBJECT'
         gpencil.grease_pencil_modifiers["Line Art"].source_object = obj
         gpencil.grease_pencil_modifiers["Line Art"].target_layer = "Lines"
+    try:
         gpencil.grease_pencil_modifiers["Line Art"].target_material = bpy.data.objects['GPencil'].material_slots[0].material
-        gpencil.grease_pencil_modifiers["Line Art"].thickness = 10
-        gpencil.show_in_front = True
+    except IndexError:
+        line_material = add_material(gpencil, name="Line", rgba=[0,0,0,1])
+        gpencil.grease_pencil_modifiers["Line Art"].target_material = line_material
+    gpencil.grease_pencil_modifiers["Line Art"].thickness = 6
+    gpencil.show_in_front = True
 
 
 def remove_materials(obj):
     set_active_object(obj)
-    for _ in obj.material_slots.items():
-        bpy.ops.object.material_slot_remove()
+    for mat_name, mat_slot in obj.material_slots.items():
+        bpy.data.materials.remove(mat_slot.material)
+        bpy.ops.object.material_slot_remove_unused()
 
 
 def add_material(obj, rgba=None, name=None):
     set_active_object(obj)
-
-    bpy.ops.material.new()
-    material = bpy.data.materials[-1]
-    material.node_tree.nodes["Principled BSDF"].inputs[0].default_value = rgba or (1, 1, 1, 1)
-    material.shadow_method = 'NONE'
-    material.node_tree.nodes["Principled BSDF"].inputs["Specular"].default_value = 0
-    material.name = name or material.name
+    material = bpy.data.materials.new(name=name or obj.name)
+    material.use_nodes = False
+    material.diffuse_color = rgba or [c / 255 for c in random.choices(range(256), k=3)] + [1]
+    bpy.context.active_object.data.materials.append(material)
     return material
 
 
@@ -135,17 +134,21 @@ def update_materials(obj):
     set_active_object(obj)
     for name, _ in obj.material_slots.items():
         bpy.data.materials[name].use_nodes = False
-        bpy.data.materials[name].diffuse_color = random.choices(range(256), k=3) + [1]
+        bpy.data.materials[name].diffuse_color = [c / 255 for c in random.choices(range(256), k=3)] + [1]
+        bpy.data.materials[name].metallic = 0
+        bpy.data.materials[name].specular_color = [1,1,1]
 
 def setup_lights(cam, target_object):
     bpy.ops.object.light_add(type="SUN", location=[0, 0, cam.location[2]])
     overhead_light = bpy.context.object
     overhead_light.data.use_shadow = False
+    overhead_light.data.energy = 10
     bpy.ops.object.light_add(type="SUN", location=[cam.location[0], cam.location[1], 0])
     front_light = bpy.context.object
     front_light.parent = target_object
     front_light.rotation_euler[0] = math.radians(90)
     front_light.data.use_shadow = False
+    front_light.data.energy = 10
     front_light_constraint = front_light.constraints.new(type="TRACK_TO")
     front_light_constraint.track_axis = 'TRACK_NEGATIVE_Z'
     front_light_constraint.target = target_object
@@ -154,9 +157,12 @@ def setup_lights(cam, target_object):
     cam_light = bpy.context.object
     cam_light.parent = target_object
     cam_light.data.use_shadow = False
+    cam_light.data.energy = 10
+
     cam_light_constraint = cam_light.constraints.new(type="TRACK_TO")
     cam_light_constraint.track_axis = 'TRACK_NEGATIVE_Z'
     cam_light_constraint.target = target_object
+
     return overhead_light, front_light, cam_light
 
 
@@ -167,7 +173,9 @@ def get_image_path(input_file, output_dir, category):
 
 def save_images(image_path_prefix, cam_target, views=None):
     stepsize = 360.0 / args.views
+    bpy.ops.object.select_all(action='SELECT')
     for i in range(0, views):
+        bpy.ops.view3d.camera_to_view_selected()
         print(f"Rotation {(stepsize * i)}, {math.radians(stepsize * i)}")
         render_file_path = f"{image_path_prefix}_{int(i * stepsize):03d}".format()
         bpy.context.scene.render.filepath = render_file_path
@@ -182,6 +190,7 @@ def save_images(image_path_prefix, cam_target, views=None):
         bpy.context.scene.render.filepath = render_file_path
         bpy.ops.render.render(write_still=True)  # render still
         cam_target.rotation_euler[2] += math.radians(stepsize)
+
 
 def set_active_object(obj=None):
 
@@ -248,8 +257,8 @@ def main(file_path, output_folder, view_count, import_options, data_dir=None):
         save_meshes(obj, obj_file_path, output_folder)
         # save B/W "sketch" views
         remove_materials(obj)
-        add_material(obj)
-        # add_line_art(obj)
+        add_line_art(obj)
+        add_material(obj, rgba=[1, 1, 1, 1])
         save_images(get_image_path(obj_file_path, output_folder, "sketch"), cam_target, view_count)
         delete_object(obj)
 
