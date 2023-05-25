@@ -2,7 +2,7 @@
 # Copyright 2004-present Facebook. All Rights Reserved.
 
 import torch
-
+from edit3d import device
 
 def decode_sdf(decoder, latent_vector, queries):
     num_samples = queries.shape[0]
@@ -30,8 +30,8 @@ def decode_colorsdf(decoder, latent_vector, queries):
 # based on the customized colorsdf network
 def decode_colorsdf2(deepsdf, colorsdf, shape_code, color_code, queries):
     num_samples = queries.shape[0]
-    shape_codes = shape_code.expand(num_samples, -1)
-    color_codes = color_code.expand(num_samples, -1)
+    shape_codes = shape_code.expand(num_samples, -1).to(device)
+    color_codes = color_code.expand(num_samples, -1).to(device)
     inputs = torch.cat([shape_codes, queries], 1)
     sdf, shape_feats = deepsdf(inputs)
     inputs2 = torch.cat([color_codes, shape_feats, queries], dim=-1)
