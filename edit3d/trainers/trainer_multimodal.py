@@ -183,7 +183,7 @@ class Trainer(BaseTrainer):
 
             lossfun = binary_cross_entropy
         else:
-            raise NotImplementedError("Unknow loss function: {}".format(cfg.type))
+            raise NotImplementedError("Unknown loss function: {}".format(cfg.type))
         return lossfun
 
     # Convert list of shape ids to their corresponding indices in embedding.

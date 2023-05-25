@@ -11,6 +11,9 @@ import argparse, sys, os, math, re
 import bpy
 import json
 import random
+import bmesh
+from glob import glob
+
 import numpy as np
 
 
@@ -74,7 +77,7 @@ def import_obj(file_path, scale=1, remove_doubles=True, edge_split=True, **kwarg
 def setup_camera() -> (bpy.types.Camera, bpy.types.Camera):
     # Place camera
     cam = bpy.context.scene.objects["Camera"]
-    cam.location = (0, 1, 0.6)
+    cam.location = (0, .9, 0.5)
     cam.data.lens = 35
     cam.data.sensor_width = 32
 
@@ -129,26 +132,51 @@ def add_material(obj, rgba=None, name=None):
     bpy.context.active_object.data.materials.append(material)
     return material
 
+def toggle_edit():
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.mode_set(mode='EDIT')
 
-def update_materials(obj):
+def assign_materials(obj):
     set_active_object(obj)
     for name, _ in obj.material_slots.items():
         bpy.data.materials[name].use_nodes = False
         bpy.data.materials[name].diffuse_color = [c / 255 for c in random.choices(range(256), k=3)] + [1]
         bpy.data.materials[name].metallic = 0
         bpy.data.materials[name].specular_color = [1,1,1]
+    # mesh = bpy.data.meshes[obj.name]
+    # bpy.ops.object.mode_set(mode='EDIT')
+    # add_material(obj)
+    # bpy.ops.object.material_slot_select()
+    # bm = bmesh.from_edit_mesh(mesh)
+    # while polygons := [f for f in bm.faces if f.select]:
+    #     print(f"Still need to assign colors to {len(polygons)} polygons.")
+    #     polygon = polygons[0]
+    #     bpy.ops.mesh.select_all(action='DESELECT')
+    #     add_material(obj)
+    #     bpy.context.object.active_material_index = len(bpy.context.object.material_slots) - 1
+    #     polygon.select = True
+    #     bmesh.update_edit_mesh(mesh)
+    #     bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='FACE')
+    #     bpy.ops.mesh.faces_select_linked_flat()
+    #     bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='EDGE')
+    #     bpy.ops.mesh.faces_select_linked_flat(sharpness=0.60)
+    #     bpy.ops.object.material_slot_assign()
+    #     bpy.ops.mesh.select_all(action='DESELECT')
+    #     bpy.context.object.active_material_index = 0
+    #     bpy.ops.object.material_slot_select()
+    # bpy.ops.object.mode_set(mode='OBJECT')
+
 
 def setup_lights(cam, target_object):
     bpy.ops.object.light_add(type="SUN", location=[0, 0, cam.location[2]])
     overhead_light = bpy.context.object
     overhead_light.data.use_shadow = False
-    overhead_light.data.energy = 10
+
     bpy.ops.object.light_add(type="SUN", location=[cam.location[0], cam.location[1], 0])
     front_light = bpy.context.object
     front_light.parent = target_object
     front_light.rotation_euler[0] = math.radians(90)
     front_light.data.use_shadow = False
-    front_light.data.energy = 10
     front_light_constraint = front_light.constraints.new(type="TRACK_TO")
     front_light_constraint.track_axis = 'TRACK_NEGATIVE_Z'
     front_light_constraint.target = target_object
@@ -157,7 +185,7 @@ def setup_lights(cam, target_object):
     cam_light = bpy.context.object
     cam_light.parent = target_object
     cam_light.data.use_shadow = False
-    cam_light.data.energy = 10
+
 
     cam_light_constraint = cam_light.constraints.new(type="TRACK_TO")
     cam_light_constraint.track_axis = 'TRACK_NEGATIVE_Z'
@@ -193,7 +221,6 @@ def save_images(image_path_prefix, cam_target, views=None):
 
 
 def set_active_object(obj=None):
-
     active_object = obj or next((o for o in bpy.context.scene.objects if 'model_normalized' in o.name.lower()))
     bpy.context.view_layer.objects.active = active_object
     return active_object
@@ -243,7 +270,7 @@ def delete_object(obj):
 
 def main(file_path, output_folder, view_count, import_options, data_dir=None):
     cam, cam_target = setup_camera()
-    setup_lights(cam, cam_target)
+    overhead_light, front_light, cam_light = setup_lights(cam, cam_target)
     files = get_image_paths(data_dir, file_path) if data_dir else [file_path]
     print(files)
     for obj_file_path in files:
@@ -251,15 +278,23 @@ def main(file_path, output_folder, view_count, import_options, data_dir=None):
         obj = import_obj(obj_file_path, **import_options)
         add_line_art(obj)
         # Assign arbitrary colors to existing materials
-        update_materials(obj)
         # save color "sketch" views
+        remove_materials(obj)
+        add_material(obj, rgba=[1, 1, 1, 1])
+        save_images(get_image_path(obj_file_path, output_folder, "sketch"), cam_target, view_count)
+        remove_materials(obj)
+        assign_materials(obj)
         save_images(get_image_path(obj_file_path, output_folder, "color"), cam_target, view_count)
         save_meshes(obj, obj_file_path, output_folder)
         # save B/W "sketch" views
         remove_materials(obj)
         add_line_art(obj)
+        # Turn up light on object to "wash" out the object.
+        cam_light.data.energy = 10
         add_material(obj, rgba=[1, 1, 1, 1])
         save_images(get_image_path(obj_file_path, output_folder, "sketch"), cam_target, view_count)
+        # Turn down light to see color better.
+        cam_light.data.energy = 1
         delete_object(obj)
 
 
