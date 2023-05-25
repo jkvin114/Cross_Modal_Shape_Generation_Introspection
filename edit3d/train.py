@@ -125,7 +125,7 @@ def main(args, cfg):
 
                 # checkpoints
                 trainer.save(epoch=epoch, step=step_cnt)
-                del grid_sample, renders, grid_sample, grid_gt, im_data
+                del grid_sample, renders, grid_gt, im_data
 
             del data
             free()

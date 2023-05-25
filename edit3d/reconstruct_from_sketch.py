@@ -80,7 +80,7 @@ def reconstruct(trainer, target, mask, epoch, trial, gamma, beta, K=5):
         init_latent = torch.randn_like(template).to(device)
         latent, loss = trainer.step_manip_sketch(init_latent, target, mask=mask, epoch=epoch, gamma=gamma, beta=beta)
         latents.append(latent[-1])
-        losses.append(loss.detach().numpy())
+        losses.append(loss.cpu().detach().numpy())
     # get the top K latent
     losses = np.array(losses)
     indices = losses.argsort()[-K:]
@@ -92,6 +92,7 @@ def main(args, config):
     torch.backends.cudnn.benchmark = True
     trainer_lib = importlib.import_module(config.trainer.type)
     trainer = trainer_lib.Trainer(config, args, device)
+    logger.debug(f"PATH to Pretrained: {os.path.abspath(args.pretrained)}")
     trainer.resume_demo(args.pretrained)
     idx2sid = {}
     for k, v in trainer.sid2idx.items():

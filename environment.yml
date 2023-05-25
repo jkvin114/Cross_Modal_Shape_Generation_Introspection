@@ -246,7 +246,7 @@ dependencies:
       - decorator==5.1.1
       - defusedxml==0.7.1
       - docutils==0.16
-      - edit3d==0.0.1
+      - -e .
       - entrypoints==0.4
       - ephem==4.1.4
       - executing==1.2.0

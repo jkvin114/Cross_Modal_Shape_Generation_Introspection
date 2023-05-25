@@ -271,6 +271,9 @@ def main(args, cfg):
         imagename="1013f70851210a618f2e765c4a8ed3d"
         category="chair"
     elif imagenum==3:
+        imagename="3c786ff99885e95c685d4893e4ba8951"
+        category="chair"
+    elif imagenum==4:
         imagename="10aa040f470500c6a66ef8df4909ded9"
         category="airplane"
     else:
