@@ -314,6 +314,13 @@ class Trainer(BaseTrainer):
         mse_loss = F.mse_loss(im_samples, data_color2d)
         loss_color2D = lap_loss + mse_loss
 
+        # Punish tiny changes
+        tmp = latent_codes_coarse_shape
+        tmp[tuple(torch.randint_like(tmp.size))] = 1
+        im_logits, im_samples = self._forward_imgen(tmp)
+        loss_tc = torch.mean(self.lossfun_sketch(im_logits, data_sketch))
+
+
         loss = 0.5 * (
             loss_fine_shape * self.cfg.trainer.loss_fine_shape.weight
             + loss_sketch * self.cfg.trainer.loss_image.weight
