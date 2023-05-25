@@ -254,7 +254,7 @@ class Trainer(BaseTrainer):
         self.optim_latentcode_shape.zero_grad()
         self.optim_latentcode_color.zero_grad()
 
-    def step(self, data):
+    def step(self, data, option = 0, prev = None):
 
         data_ids = data["shape_ids"]
         data_f = data["surface_samples"].to(self.device, non_blocking=True)  # [64 2048 7] xyzd+rgb
@@ -316,16 +316,31 @@ class Trainer(BaseTrainer):
 
         # Punish tiny changes
         tmp = latent_codes_coarse_shape
-        tmp[tuple(torch.randint_like(tmp.size))] = 1
+        if option == 0:
+            for _ in range(100): 
+                tmp[tuple(torch.randint_like(tmp.size))] = 1
+        else:
+            tmp += torch.randn_like(tmp) * 1e-3
         im_logits, im_samples = self._forward_imgen(tmp)
         loss_tc = torch.mean(self.lossfun_sketch(im_logits, data_sketch))
 
+        # Compare diff
+        # 2D 
+        if prev:
+            non_white = len(torch.where(latent_codes_coarse_shape != 255)[0])
+            diff_2d = len(torch.where((latent_codes_coarse_shape - prev) != 0)[0])/non_white
+            curr, _ = self._forward_imgen(latent_codes_coarse_shape)
+            prev = self._forward_imgen(prev)
+            diff_3d = F.mse_loss(curr, prev)/curr
+            loss_diff = torch.sqrt(torch.log(diff_2d + 1) - (diff_3d + 1) ** 2)
 
         loss = 0.5 * (
             loss_fine_shape * self.cfg.trainer.loss_fine_shape.weight
             + loss_sketch * self.cfg.trainer.loss_image.weight
             + loss_color3D * self.cfg.trainer.loss_color3D.weight
             + loss_color2D * self.cfg.trainer.loss_color2D.weight
+            + loss_tc
+            + loss_diff if prev else 0
         )
 
         (
