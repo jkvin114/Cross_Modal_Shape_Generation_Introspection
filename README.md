@@ -1,10 +1,13 @@
-## Cross-Modal 3D Shape Generation and Manipulation (ECCV 2022)
+## Updated Cross-Modal 3D Shape Generation and Manipulation 
 
-This repository contains the source code for the ECCV 2022 paper <u>Cross-Modal 3D Shape Generation and Manipulation</u>. Our implementation is based on [DualSDF](https://www.cs.cornell.edu/~hadarelor/dualsdf/). 
 
-[[Project page]](https://people.cs.umass.edu/~zezhoucheng/edit3d)  
+### Contributions
 
-Note: (07/18/2022) This codebase has not yet been systematically tested. We're working in progress. Stay tuned!
+Svrcek: Updated and fixed the import and preprocessing scripts including rewriting the render_blender_lines.py functionality which outputs a 
+numpy mesh as well as the images, the logic for the line art, and a small script convert_to_bw.py, and pulling in the sample_sdfs.py file from the dualsdf repo and updated it to allow
+iterating over the various shapenet files. I converted the repo into a module, and refactored most of the code to match 
+best practices and formatting.  I fixed numerous pathing issues and bugs caused by misnamed variables.  
+Lastly I added cpu support, and tried to clean up memory overuse when using gpu.   
 
 ### Installation
 
@@ -103,11 +106,11 @@ python edit3d/few_shot_adaptation.py ./config/airplane_demo.yaml  --mode train  
 python edit3d/few_shot_adaptation.py ./config/airplane_demo.yaml --mode test --pretrained path/to/pretrained-mineGAN --outf path/to/output    --code shape/or/color 
 ```
 
-* Download pretrained MineGAN: 
 
-These models are trained with 10 RGB examples per category: 
-[Armchairs](https://www.dropbox.com/s/l2qvhtmma8hr2v9/armchair_10shot_netM_epoch_99.pth?dl=0), [Side chairs](https://www.dropbox.com/s/5rkb6m8ose874wp/sidechair_10shot_netM_epoch_199.pth?dl=0), [Pink chairs](https://www.dropbox.com/s/mrg2lj47n7ilvjc/red_10shot_netM_epoch_99.pth?dl=0)
 
+This project is based on the ECCV 2022 paper <u>Cross-Modal 3D Shape Generation and Manipulation</u>. Our implementation is based on [DualSDF](https://www.cs.cornell.edu/~hadarelor/dualsdf/). 
+
+[[Project page]](https://people.cs.umass.edu/~zezhoucheng/edit3d)  
 
 ### Citation
 
