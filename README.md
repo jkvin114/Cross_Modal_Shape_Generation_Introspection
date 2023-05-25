@@ -6,7 +6,7 @@ wrote mesh_colorizor.py, modified save(), load_image_and_scribble(), edit(), and
 
 Hongyu Tu: 
 
-Loss function update in trainer_multimodal.py, fixes in edit_via_sketch_Hongyu.py. 
+Loss function update in trainer_multimodal.py, fixes in edit_via_sketch_Hongyu.py based on Yejoon's `edit-sketch-fix`. 
 
 ## Cross-Modal 3D Shape Generation and Manipulation (ECCV 2022)
 
