@@ -1,3 +1,11 @@
+## Contribution of each members
+
+Yejoon Jung: 
+
+wrote mesh_colorizor.py, modified save(), load_image_and_scribble(), edit(), and main() functions in edit_via_scribble.py. In addition,  all commits in `scribble-fix`, `edit-sketch-fix`, and `scribble-fix-stable`. 
+
+
+
 ## Cross-Modal 3D Shape Generation and Manipulation (ECCV 2022)
 
 This repository contains the source code for the ECCV 2022 paper <u>Cross-Modal 3D Shape Generation and Manipulation</u>. Our implementation is based on [DualSDF](https://www.cs.cornell.edu/~hadarelor/dualsdf/). 
@@ -29,6 +37,8 @@ make train
 Download Pretrained models: [ShapeNet Chairs](https://www.dropbox.com/s/teez91j76d1pssf/chairs_epoch_2799_iters_280000.pth?dl=0), [ShapeNet Airplanes](https://www.dropbox.com/s/trj8777psawq7dt/airplanes_epoch_2799_iters_156800.pth?dl=0)
 
 [./examples](./examples) contains data samples that were used for the following applications of our model. 
+
+All pretrained models should be in /data/models folder.
 
 #### Shape editing via 2D sketches
 
