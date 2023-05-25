@@ -9,6 +9,7 @@ import models.embeddings
 import toolbox.lr_scheduler
 from edit3d.trainers.base_trainer import BaseTrainer
 from edit3d.trainers.losses import laploss
+from edit3d import device, free
 
 
 def KLD(mu, logvar):
@@ -182,7 +183,7 @@ class Trainer(BaseTrainer):
 
             lossfun = binary_cross_entropy
         else:
-            raise NotImplementedError("Unknow loss function: {}".format(cfg.type))
+            raise NotImplementedError("Unknown loss function: {}".format(cfg.type))
         return lossfun
 
     # Convert list of shape ids to their corresponding indices in embedding.
@@ -209,7 +210,7 @@ class Trainer(BaseTrainer):
         if "latent_code_augment" in batch_latent_dict.keys():
             batch_latent_aug = batch_latent_dict["latent_code_augment"]
         else:
-            batch_latent_aug = batch_latent
+            batch_latent_aug = batch_latent.to(self.device)
         return (
             batch_latent,
             batch_latent_aug,
@@ -256,7 +257,7 @@ class Trainer(BaseTrainer):
 
     def step(self, data, option = 0, prev = None):
 
-        data_ids = data["shape_ids"]
+        # data_ids = data["shape_ids"]
         data_f = data["surface_samples"].to(self.device, non_blocking=True)  # [64 2048 7] xyzd+rgb
         data_indices = data["shape_indices"].squeeze(-1).to(self.device, non_blocking=True)  # [64]
         data_sketch = data["sketch"].to(self.device, non_blocking=True)
@@ -292,6 +293,9 @@ class Trainer(BaseTrainer):
         dists_deepsdf = dists_deepsdf.squeeze(-1)
         loss_fine_shape = torch.mean(self.lossfun_fine(dists_deepsdf, dists_gt_fine))
 
+        del dists_deepsdf, dists_gt_fine
+        free()
+
         # ColorSDF
         self.optim_colorsdf.zero_grad()
         color_gt_fine = data_f[..., 4:7].squeeze(-1)
@@ -301,10 +305,16 @@ class Trainer(BaseTrainer):
             rgb_colorsdf = self._forward_colorsdf(latent_codes_fine_color, shape_feat.detach(), pts_fine).squeeze(-1)
         loss_color3D = torch.mean(self.lossfun_color3D(color_gt_fine, rgb_colorsdf))
 
+        del color_gt_fine, rgb_colorsdf
+        free()
+
         # sketch generator
         self.optim_imgen.zero_grad()
         im_logits, im_samples = self._forward_imgen(latent_codes_coarse_shape)
         loss_sketch = torch.mean(self.lossfun_sketch(im_logits, data_sketch))
+
+        del im_logits, data_sketch
+        free()
 
         # color image generator
         self.optim_colorgen.zero_grad()
@@ -325,14 +335,18 @@ class Trainer(BaseTrainer):
         loss_tc = torch.mean(self.lossfun_sketch(im_logits, data_sketch))
 
         # Compare diff
-        # 2D 
         if prev:
+            # 2D 
             non_white = len(torch.where(latent_codes_coarse_shape != 255)[0])
             diff_2d = len(torch.where((latent_codes_coarse_shape - prev) != 0)[0])/non_white
+            # 3D
             curr, _ = self._forward_imgen(latent_codes_coarse_shape)
             prev = self._forward_imgen(prev)
             diff_3d = F.mse_loss(curr, prev)/curr
             loss_diff = torch.sqrt(torch.log(diff_2d + 1) - (diff_3d + 1) ** 2)
+
+        del im_samples, data_color2d
+        free()
 
         loss = 0.5 * (
             loss_fine_shape * self.cfg.trainer.loss_fine_shape.weight
@@ -459,7 +473,7 @@ class Trainer(BaseTrainer):
 
     # save checkpoints
     def save(self, epoch, step):
-        save_name = "epoch_{}_iters_{}.pth".format(epoch, step)
+        save_name = f"epoch_{epoch}_iters_{step}.pth"
         path = os.path.join(self.cfg.save_dir, save_name)
         torch.save(
             {
