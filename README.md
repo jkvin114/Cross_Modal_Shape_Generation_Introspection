@@ -5,6 +5,7 @@ Yejoon Jung:
 wrote mesh_colorizor.py, modified save(), load_image_and_scribble(), edit(), and main() functions in edit_via_scribble.py. In addition,  all commits in `scribble-fix`, `edit-sketch-fix`, and `scribble-fix-stable`. 
 
 Hongyu Tu: 
+
 Loss function update in trainer_multimodal.py, fixes in edit_via_sketch_Hongyu.py. 
 
 ## Cross-Modal 3D Shape Generation and Manipulation (ECCV 2022)
