@@ -33,13 +33,22 @@ Download Pretrained models: [ShapeNet Chairs](https://www.dropbox.com/s/teez91j7
 #### Shape editing via 2D sketches
 
 ```
-python edit3d/edit_via_sketch.py ./config/airplane_demo.yaml --pretrained path/to/pretrained/model --outdir path/to/output --source_dir path/to/target-images --epoch 5 --trial 1 --category airplane 
+python edit3d/edit_via_sketch.py ./config/airplane_demo.yaml --category airplane --editid 2
 ```
-or 
+`--category`: chair or airplane
+
+`--editid`: 
 ```
-make edit_via_sketch
+for chairs:
+    1: edit back
+    2: hole in the back
+for airplane:
+    1: remove engine
+    2: add engine
+    3: remove engine + modify wings
 ```
-#### Color editing via 2D scribbles 
+
+### Color editing via 2D scribbles 
 
 For chair: 
 ```
@@ -68,7 +77,7 @@ partid
 
 `--imagenum`: 1: chair, 2: couch chair, 3,4: airplanes
 
-`--colors`: 0: random, 1:blue+lime, 2: red+blue, 3: magenta+lightblue 
+`--colors`: 0: random, 1:red+blue, 2: blue+lime, 3: magenta+lightblue 
 
 #### Shape reconstruction from 2D sketches 
 

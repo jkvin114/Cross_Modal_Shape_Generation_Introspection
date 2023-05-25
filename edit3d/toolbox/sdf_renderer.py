@@ -187,6 +187,8 @@ class SDFRenderer:
                 dim=0,
             )
             sun_color = torch.tensor([1.0, 0.7, 0.5], dtype=torch.float32, device=self.device)
+
+
             sun_dif = torch.clamp(torch.matmul(normals, sun_dir).unsqueeze(-1), 0.0, 1.0)
 
             sky_dir = torch.tensor([0.0, -1.0, 0.0], dtype=torch.float32, device=self.device)
@@ -213,6 +215,7 @@ class SDFRenderer:
             framebuffer = sun_dif * colors1
             framebuffer += sky_dif * colors2
             framebuffer = (framebuffer) ** (1 / 2.2)
+            framebuffer=colors1
 
             framebuffer[bg_mask[..., 0], :] = torch.tensor(self.cfg.bg_color, dtype=torch.float32, device=self.device)
             img = (torch.clamp(framebuffer, 0, 1)[0].cpu().numpy() * 255).astype(np.uint8)

@@ -69,6 +69,21 @@ class Trainer(CrossModalTrainer):
         loss_kld = gamma * (torch.clamp(loss_kld, beta, None) - beta)
         loss_man = alphas[0] * torch.mean(torch.abs(x - target) * mask.to(edit3d.device)) + alphas[1] * loss_kld
         return loss_man, loss_kld
+    
+    def manip_fun_fixed(self, original,x, target, mask, feat, gamma=0.02, beta=0.5, alphas=[1.0, 1.0, 0.0]):
+        loss_kld = torch.mean(0.5 * torch.mean(feat ** 2, dim=-1))
+        # gamma=0.002
+        loss_kld = gamma * (torch.clamp(loss_kld, beta, None) - beta)
+        lam=0
+        # gamma=0.001
+        # alphas[1]=alphas[1]*2
+        reg_amt_sketch=torch.mean(torch.abs((1-target) - (1-x)))
+        # print(torch.mean(torch.abs(original - target) * (1-mask.to(edit3d.device)) * lam))
+        
+        loss_man = alphas[0] * torch.mean(torch.abs(x - target) * mask.to(edit3d.device) + torch.abs(original - x) * (1-mask.to(edit3d.device)) * lam) + alphas[1] * loss_kld \
+        +reg_amt_sketch * 0.0
+        return loss_man, loss_kld
+
 
     def sample_latent_gaussian(self, num_pts):
         latent_codes_coarse_color = self.latent_embeddings_color.random_sample_gaussian(num_pts)
@@ -145,7 +160,7 @@ class Trainer(CrossModalTrainer):
         loss_man = torch.mean(torch.abs(x - target) * mask) + loss_kld + loss_kld2
         return loss_man, loss_kld, loss_kld2
     
-    def recon_fun_fixed(self,original, x, target, mask, feat_shape, feat_color, gamma=0.02, beta=0.5):
+    def recon_fun_fixed(self,original, x, target, mask, feat_shape, feat_color, gamma=0.02, beta=0.5,lam=0):
         loss_kld = torch.mean(0.5 * torch.mean(feat_shape ** 2, dim=-1))
         loss_kld = gamma * (torch.clamp(loss_kld, beta, None) - beta)
 
@@ -153,8 +168,7 @@ class Trainer(CrossModalTrainer):
         loss_kld2 = gamma * (torch.clamp(loss_kld2, beta, None) - beta)
         mask=mask.to(edit3d.device)
 
-        lam=0.9
-        loss_man = torch.mean(torch.linalg.norm(original - target)**2 * (1-mask)  + torch.abs(x - target)*lam * mask) + loss_kld + loss_kld2
+        loss_man = torch.mean(torch.abs(original - target) * (1-mask) * lam  + torch.abs(x - target) * mask) + loss_kld + loss_kld2
         return loss_man, loss_kld, loss_kld2
 
     def step_recon_rgb(
@@ -216,6 +230,7 @@ class Trainer(CrossModalTrainer):
         epoch=1001,
         gamma=0.02,
         beta=0.5,
+        lam=0
     ):
         if mask == None:
             mask = torch.ones_like(target)
@@ -268,6 +283,7 @@ class Trainer(CrossModalTrainer):
                 latent_codes_color,
                 gamma=gamma,
                 beta=beta,
+                lam=lam
             )
             
             loss_recon.backward()
@@ -325,10 +341,14 @@ class Trainer(CrossModalTrainer):
         for param in self.imgen_net.parameters():
             param.requires_grad = False
         latent_codes.append(latent_codes_coarse.detach().clone())
+        with torch.no_grad():
+            _,original = self.imgen_net(latent_codes_coarse)
+        min_loss=np.inf
+        min_epoch =0 
         for i in range(epoch):
             optim.zero_grad()
             _, sketch = self.imgen_net(latent_codes_coarse)
-            loss_manip, loss_kld = self.manip_fun(
+            loss_manip, loss_kld = self.manip_fun_fixed(original,
                 sketch,
                 target,
                 mask,
@@ -342,6 +362,10 @@ class Trainer(CrossModalTrainer):
                 print(i, loss_manip.item(), loss_kld.item())
             optim.step()
             latent_codes.append(latent_codes_coarse.detach().clone())
+            with torch.no_grad():
+                if min_loss >loss_manip.item(): 
+                    min_loss=min(loss_manip.item(),min_loss)
+                    min_epoch=i
         return latent_codes, loss_manip
 
     def step_clip_color(self, feat_shape, feat_color, text, gamma=0.02, beta=0.5):
@@ -432,6 +456,11 @@ class Trainer(CrossModalTrainer):
         with torch.no_grad():
             sdf_fun, _ = self._get_render_sdfs(latent_codes_fine_shape, latent_codes_fine_color)
             print("R", end="")
+            raydir,rayori=SDFRenderer.cam_lookat(renderer.ray_dir_w,renderer.ray_ori_w,50,50)
+            renderer.ray_ori_w=rayori
+            renderer.ray_dir_w=raydir
+            print(renderer.ray_ori_w.shape)
+            print(renderer.ray_dir_w.shape)
             img = renderer.render(sdf_fun, coloridx=None)
         return img
 
@@ -481,7 +510,7 @@ class Trainer(CrossModalTrainer):
 
         self.cfg.train_shape_ids = range(ckpt["trainer_state_dict"]["latent_embeddings_shape.weight_mu"].shape[0])
         self.prep_train()
-        print(ckpt["trainer_state_dict"].keys())
+        # print(ckpt["trainer_state_dict"].keys())
         """
         latent_embeddings_shape.weight_mu',
           'latent_embeddings_shape.weight_logvar',
@@ -489,7 +518,7 @@ class Trainer(CrossModalTrainer):
               'latent_embeddings_color.weight_logvar
         """
         self.load_state_dict(ckpt["trainer_state_dict"], strict=False)
-        print(ckpt["trainer_state_dict"]["latent_embeddings_shape.weight_mu"].shape)
+        # print(ckpt["trainer_state_dict"]["latent_embeddings_shape.weight_mu"].shape)
         # torch.save(ckpt["trainer_state_dict"],"output/model_state.pkt")
         self.sid2idx = ckpt["shapeid2idx"]
 

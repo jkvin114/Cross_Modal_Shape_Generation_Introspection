@@ -37,13 +37,14 @@ class VADLogVar(nn.Module):
             logvar_init_std,
         )
         print("vad init")
-        print(self.weight_mu)
+        # print(self.weight_mu)
 
     def forward(self, idx, **kwargs):
         num_augment_pts = kwargs["num_augment_pts"]
-        
-        mu = self.weight_mu[idx]
-        logvar = self.weight_logvar[idx]
+        # print(idx[0][0])
+        idx=int(idx[0].item())
+        mu = torch.Tensor(self.weight_mu[idx])
+        logvar = torch.Tensor(self.weight_logvar[idx])
         if self.cfg.fix_var:
             logvar = logvar.detach()
         std = torch.exp(0.5 * logvar)

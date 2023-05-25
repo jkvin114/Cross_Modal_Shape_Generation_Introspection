@@ -59,7 +59,7 @@ def main(args, cfg):
         # train for one epoch
         for bidx, data in enumerate(train_loader):
             step_cnt = bidx + len(train_loader) * epoch + 1
-
+            if not data: continue
             # print("load data time: {:0.5f}".format(time.time() - prev_load_data))
             logs_info = trainer.step(data)
 
@@ -156,12 +156,12 @@ if __name__ == "__main__":
     cfg_file_name = os.path.splitext(os.path.basename(args.config))[0]
     run_time = time.strftime("%Y-%b-%d-%H-%M-%S")
     # Currently save dir and log_dir are the same
-    config.log_name = f"{args.logdir}/{log_prefix}{cfg_file_name}_{run_time}"
-    config.save_dir = f"{config.log_name}/checkpoints"
-    config.log_dir = config.log_name
-    config_dir = os.path.join(config.log_dir, "config")
-    os.makedirs(config_dir)
-    os.makedirs(config.save_dir)
+    config.log_name = f"log/{log_prefix}{cfg_file_name}_{run_time}"
+    # config.save_dir = f"{config.log_name}/checkpoints"
+    # config.log_dir = config.log_name
+    config_dir = os.path.join("log", "config")
+    # os.makedirs(config_dir)
+    # os.makedirs("newmodel")
     copy2(args.config, config_dir)
     with open(os.path.join(config_dir, "argv.json"), "w") as f:
         json.dump(sys.argv, f)

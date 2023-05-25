@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Sampler
 
-from edit3d.multimodal import logger
+# from edit3d.multimodal import logger
 
 
 class ShuffleWarpSampler(Sampler):
@@ -9,7 +9,7 @@ class ShuffleWarpSampler(Sampler):
         super().__init__(data_source)
         self.data_source = data_source
         self.n_repeats = n_repeats
-        logger.info("[ShuffleWarpSampler] Expanded data size: %s", len(self))
+        # logger.info("[ShuffleWarpSampler] Expanded data size: %s", len(self))
 
     def __iter__(self):
         shuffle_idx = []

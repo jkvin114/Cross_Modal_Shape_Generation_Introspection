@@ -82,7 +82,7 @@ def create_mesh(
     end = time.time()
     logger.info("sampling takes: %f" % (end - start))
 
-    convert_sdf_samples_to_ply(
+    return convert_sdf_samples_to_ply(
         sdf_values.data.cpu(),
         color_values.data.cpu(),
         voxel_origin,
@@ -91,7 +91,18 @@ def create_mesh(
         offset,
         scale,
     )
+    # return vertices
 
+# import open3d as o3d
+
+# def showmesh(verts,triangles):
+#     mesh = o3d.geometry.TriangleMesh()
+#     # Use mesh.vertex to access the vertices' attributes
+#     mesh.vertices = o3d.utility.Vector3dVector(verts[:])
+#     # Use mesh.triangle to access the triangles' attributes
+#     mesh.triangles = o3d.utility.Vector3iVector(triangles.astype(np.int32))
+#     mesh.compute_vertex_normals()
+#     o3d.visualization.draw_geometries([mesh])
 
 def convert_sdf_samples_to_ply(
     pytorch_3d_sdf_tensor,
@@ -116,7 +127,8 @@ def convert_sdf_samples_to_ply(
 
     numpy_3d_sdf_tensor = pytorch_3d_sdf_tensor.numpy()
     numpy_3d_color_tensor = pytorch_3d_color_tensor.numpy()
-
+    print("sdf shape")
+    print(numpy_3d_sdf_tensor.shape)
     verts, faces, normals, values = skimage.measure.marching_cubes(
         numpy_3d_sdf_tensor, level=0.0, spacing=[voxel_size] * 3
     )
@@ -167,8 +179,10 @@ def convert_sdf_samples_to_ply(
     el_verts = plyfile.PlyElement.describe(verts_all, "vertex")
     el_faces = plyfile.PlyElement.describe(faces_tuple, "face")
 
+
     ply_data = plyfile.PlyData([el_verts, el_faces])
     logging.debug("saving mesh to %s" % (ply_filename_out))
     ply_data.write(ply_filename_out)
 
     logging.debug("converting to ply format and writing to file took {} s".format(time.time() - start_time))
+    return el_verts,el_faces

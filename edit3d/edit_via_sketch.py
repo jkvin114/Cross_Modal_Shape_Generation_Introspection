@@ -36,7 +36,8 @@ def save(trainer, latent, target, outdir, imname, save_ply=False):
                 N=256,
                 max_batch=int(2 ** 18),
             )
-    pred_3d = trainer.render_express(shape_code, color_code, resolution=256)
+    resolution=64
+    pred_3d = trainer.render_express(shape_code, color_code, resolution=resolution)
     pred_3d = cv2.cvtColor(pred_3d, cv2.COLOR_RGB2BGR)
     cv2.imwrite(pred_3D_filename, pred_3d)
     pred_sketch = trainer.render_sketch(shape_code)
@@ -116,11 +117,11 @@ def get_mask(source, target):
     return mask
 
 
-def edit(trainer, init_latent, source, target, epoch, gamma, beta):
+def edit(trainer, init_latent, source, target):
     since = time.time()
     init_shape, init_color = init_latent
     mask = get_mask(source, target)
-    latent, loss = trainer.step_edit_sketch(init_shape, target, mask=mask, epoch=epoch, gamma=gamma, beta=beta)
+    latent, loss = trainer.step_edit_sketch(init_shape, target, mask=mask)
     logger.info(f"Editing shape takes {time.time() - since} seconds")
     return latent, init_color  # here the latent contains multiple snapshot
 
@@ -170,6 +171,7 @@ def main(args, cfg):
         logger.error("Only airplane and chair are supported categories")
         raise Exception(f"No such category: {args.category}")
 
+    outdir=
     for imname in os.listdir(source_dir):
 
         source_path = os.path.join(source_dir, imname)
@@ -187,17 +189,14 @@ def main(args, cfg):
             source_latent = trainer.get_known_latent(trainer.sid2idx[imname])
             initdir = os.path.join(targetdir, "init")
             os.makedirs(initdir, exist_ok=True)
-            save_init(trainer, source_latent, initdir, imname + "_init")
+            # save_init(trainer, source_latent, initdir, imname + "_init")
 
             # editing
             edit_latent, color_code = edit(
                 trainer,
                 source_latent,
                 data["source"],
-                data["target"],
-                args.epoch,
-                args.gamma,
-                args.beta,
+                data["target"]
             )
             for iteration, latent_snap in enumerate(edit_latent[:10]):
                 save(
@@ -222,6 +221,10 @@ if __name__ == "__main__":
     parser.add_argument("--beta", default=0.5, type=float)
     parser.add_argument("--gamma", default=0.02, type=float)
     parser.add_argument("--epoch", default=10, type=int)
+
+    parser.add_argument("--epoch", default=10, type=int)
+
+
     args = parser.parse_args()
 
     with open(args.config, "r") as f:

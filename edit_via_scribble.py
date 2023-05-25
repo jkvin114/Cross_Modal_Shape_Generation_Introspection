@@ -14,9 +14,11 @@ from PIL import Image
 from edit3d import device
 from edit3d.models import deep_sdf
 from edit3d.utils.utils import dict2namespace
-
+from matplotlib import pyplot as plt
 import datetime
 import random
+import trimesh
+
 # arguments: color -- the random sampled color for diferent scribbles
 def save(
     trainer,
@@ -46,17 +48,55 @@ def save(
     
     if save_ply:
         with torch.no_grad():
-            deep_sdf.colormesh.create_mesh(
+            colored_vertices,faces_tupled=deep_sdf.colormesh.create_mesh(
                 trainer.deepsdf_net,
                 trainer.colorsdf_net,
                 shape_code,
                 color_code,
                 colormesh_filename,
-                N=256,
+                N=45,
                 max_batch=int(2 ** 18),
             )
-            
-    resolution=64
+
+
+
+            vertices_proj=np.zeros((len(colored_vertices),2))
+            vertices=np.zeros((len(colored_vertices),3))
+            vertices_colors=np.zeros((len(colored_vertices),3))
+            faces=np.zeros((len(faces_tupled),3))
+            print(faces_tupled[:10])
+            """
+            x proj: side view
+            y proj: top view
+            z proj: front view
+            """
+            for i,v in enumerate(colored_vertices):
+                vertices_proj[i][0]=v[0]
+                vertices_proj[i][1]=v[1]
+                vertices[i][0]=v[0]
+                vertices[i][1]=v[1]
+                vertices[i][2]=v[2]
+                vertices_colors[i][0]=v[3]/256
+                vertices_colors[i][1]=v[4]/256
+                vertices_colors[i][2]=v[5]/256
+            for i,f in enumerate(faces_tupled):
+                faces[i,0]=f[0][0]
+                faces[i,1]=f[0][1]
+                faces[i,2]=f[0][2]
+            print(vertices_proj.shape)
+            print(vertices_colors.shape)
+            mesh=trimesh.Trimesh(vertices=vertices,faces=faces,vertex_colors=vertices_colors)
+            samples,_,colors=trimesh.sample.sample_surface(mesh,300,sample_color=True)
+            # points=np.array(samples)
+            print(samples.shape)
+
+            # plt.xlim(-1.3, 1.3)
+            # plt.ylim(-1.3, 1.3)
+
+            # plt.scatter(samples[:,0],samples[:,2],c=colors/256)
+            # plt.show()
+
+    resolution=128
     # torch.save(latent, latent_filename)
     pred_3D = trainer.render_express(shape_code, color_code, resolution=resolution)
     pred_3D = cv2.cvtColor(pred_3D, cv2.COLOR_RGB2BGR)
@@ -140,7 +180,7 @@ def reconstruct(trainer, target, mask, epoch, trial, gamma, beta):
     return best_latent
 
 
-def edit(trainer, init_latent, target, mask, epoch=101, trial=1):
+def edit(trainer, init_latent, target, mask, epoch=101, trial=1,gamma=0.02,lam=0):
     """
     target: scribbles
     """
@@ -155,9 +195,11 @@ def edit(trainer, init_latent, target, mask, epoch=101, trial=1):
             init_color,
             target,
             mask=mask,
-            epoch=epoch
+            epoch=epoch,
+            gamma=gamma,
+            lam=lam
         )
-        print("loss:"+str(loss.data))
+        # print("loss:"+str(loss.data))
         ##gamma=0.02,
         #beta=0.5,
 
@@ -165,14 +207,15 @@ def edit(trainer, init_latent, target, mask, epoch=101, trial=1):
             best_latent = latent[-1]
             min_loss = loss
     elapse = time.time() - since
-    print(f"It takes {elapse} seconds to edit the color")
-    return best_latent
+    # print(f"It takes {elapse} seconds to edit the color")
+    # print(min_loss)
+    return best_latent,min_loss.data
 
 
 
 
 def load_image_and_scribble(source_path, target_path, part_list, use_target=True,colorcomb=0):
-    print(source_path)
+    # print(source_path)
     imagelist = glob.glob(os.path.join(source_path, "*Layer-*.png"))
     # print(imagelist)
     if len(imagelist) == 0:
@@ -190,9 +233,9 @@ def load_image_and_scribble(source_path, target_path, part_list, use_target=True
     if len(masks) == 0:
         return None
     bgrs = np.random.rand(len(masks), 3)
-    if colorcomb==1: # blue+lime
+    if colorcomb==1: #red+blue
         bgrs=[[0.9,0.2,0.2],[0.2,0.2,0.9]]
-    elif colorcomb==2:#red+blue
+    elif colorcomb==2:# blue+lime
         bgrs=[[0.2,0.2,0.9],[0.2,0.9,0.2]]
     elif colorcomb==3:#magenta+lightblue
         bgrs=[[0.8,0.1,0.8],[0.1,0.8,0.8]]
@@ -212,7 +255,7 @@ def load_image_and_scribble(source_path, target_path, part_list, use_target=True
     # load source and target image
     source_image = os.path.join(source_path, "render_r_000.png")
     source_im = load_image(source_image)
-    print(source_im.shape)
+    # print(source_im.shape)
     
 
     if use_target:  # color source is the reference image
@@ -280,26 +323,40 @@ def main(args, cfg):
     partid=args.partid
     pretrained="data/models/chairs_epoch_2799_iters_280000.pth"
     if category=="chair":
-        
         if partid==1:
-            part_list=[3]
+            part_list=[2]
         if partid==2:
-            part_list=[2,3]
+            part_list=[2,4]
         if partid==3:
-            part_list=[3,4]
+            part_list=[2,3]
     elif category=="airplane":
         pretrained="data/models/airplanes_epoch_2799_iters_156800.pth"
         if partid==1:
             part_list=[2]
         if partid==2:
             part_list=[2,3]
+    """
+    partid
+    for chairs:
+        1: seat
+        2: seat+arm
+        3: seat+back
 
+    for airplane:
+        1: body only
+        2: body+wings
+    """
     #shared args  ===============================
     source_dir="examples/edit_via_scribble/source"
-    outdir="output/edit_via_scribble/out/"
+    outdir="output/edit_via_scribble/eval2/"
     # outdir="output/edit_via_scribble/out-part"+str(args.partid)+category+"_"+str(datetime.datetime.now() ).replace(" ","_").replace(":","_")
-    trial=3
+    trial=1
     save_initial=False
+    shuffle_part=False
+    save_img=True
+    lambdas=[0,0.1,0.5,1]
+    gammas=[0.001,0.02,0.1]
+    colors=[1,2,3]
     #==============================
 
     trainer.resume_demo(pretrained)
@@ -312,33 +369,9 @@ def main(args, cfg):
     target_dir = os.path.join(source_dir, "target")
     # print(source_dir)
     # print(args.partid)
-    partid=args.partid
+    # partid=args.partid
     os.makedirs(outdir, exist_ok=True)
-    """
-    # part_list: the id indicates the semantic parts
-    if category == "airplane" and len(part_list)==0:
-        if partid == 0:
-            part_list = [4]  # back wing
-        elif partid == 1:
-            part_list = [3]  # main wing
-        elif partid == 2:
-            part_list = [2]  # body
-    elif category == "chair" and len(part_list)==0:
-        if partid == 0:
-            part_list = [2, 3, 4, 6]  # seat, back, left leg, left arm
-        elif partid == 1:
-            part_list = [2, 3]  # seat, back
-        elif partid == 2:
-            part_list = [2, 4]  # seat, left leg
-        elif partid == 3:
-            part_list = [2, 6]  # seat, left arm
-        elif partid == 4:
-            part_list = [2]  # seat
-    elif len(part_list)>0: pass
-    else:
-        print("No such category")
-        exit()
-"""
+
     # edit known shapes (i.e. shapes from the training dataset)
     imname = imagename
     source_path = os.path.join(source_dir, imname)
@@ -360,45 +393,76 @@ def main(args, cfg):
     randdir = os.path.join(targetdir, "rand")
     os.makedirs(randdir, exist_ok=True)
     
-    imname_out=imname + str(datetime.datetime.now() ).replace(" ","_").replace(":","_")
+    
     # print(part_list)
     # images=list(trainer.sid2idx.keys())
     # print(trainer.sid2idx.keys())
     
-    for k in range(trial):
-        print(k)
+    losses=dict()
+
+    N=1
+    M=3
+    losses_mat=np.zeros((N,M))
+    for k in range(N):
+        partidx=partid-1
+        if shuffle_part:
+            if category=="chair":
+                partidx=random.randint(0,2)
+                part_list=[[2],[2,4],[2,3]][partidx]
+            elif category=="airplane":
+                partidx=random.randint(0,1)
+                part_list=[[2],[2,3]][partidx]
+        color=args.colors
+        # color=1
+        print(part_list)
         # for im in trainer.sid2idx.keys():
             # part_list=random.choice([[2],[2,3],[2,4],[3],[4]])
-        data = load_image_and_scribble(source_path, target_path, part_list,colorcomb=args.colors, use_target=False)
-        source_latent = trainer.get_known_latent(trainer.sid2idx[imname])
-        print("latentshape")
-        print(source_latent[0].shape)
-        print(data["scribble"].shape) # torch.Size([3, 128, 128])
-        print(data["mask"].shape) # torch.Size([128, 128])
-        # np.broadcast_to
-        # save_image(data["scribble"].reshape((128,128,3)),"scribble.png")
-        # save_image(data["mask"].reshape((128,128,1)).broadcast_to((128,128,3)),"mask.png")
-        edit_latent = edit(
-            trainer,
-            source_latent,
-            data["scribble"],
-            data["mask"],
-        )
-        # print(data["target"].shape)
-        save(
-            trainer,
-            edit_latent,
-            data["source"],
-            data["target"],
-            data["scribble2"],
-            data["mask"],
-            data["color"],
-            outdir,
-            imname_out + f"_{k}",
-            save_ply=args.save_mesh,
-        )
+        
+        totalloss=0
+        
+        for i in range(M):
+            print(i)
+            gam=gammas[k]
+            l=lambdas[i]
+            color=colors[i]
+            data = load_image_and_scribble(source_path, target_path, part_list,colorcomb=color, use_target=False)
+            source_latent = trainer.get_known_latent(trainer.sid2idx[imname])
+            # print("latentshape")
+            # print(source_latent[0].shape)
+            # print(data["scribble"].shape) # torch.Size([3, 128, 128])
+            # print(data["mask"].shape) # torch.Size([128, 128])
+            # np.broadcast_to
+            # save_image(data["scribble"].reshape((128,128,3)),"scribble.png")
+            # save_image(data["mask"].reshape((128,128,1)).broadcast_to((128,128,3)),"mask.png")
+            edit_latent,min_loss = edit(
+                trainer,
+                source_latent,
+                data["scribble"],
+                data["mask"],
+                trial=4
+            )
+            totalloss+=min_loss
+            
 
-
+            if save_img:
+                imname_out=f"{imname[:5]}_c{color}_p{partidx}"
+                # print(data["target"].shape)
+                save(
+                    trainer,
+                    edit_latent,
+                    data["source"],
+                    data["target"],
+                    data["scribble2"],
+                    data["mask"],
+                    data["color"],
+                    outdir,
+                    imname_out,
+                    save_ply=False,
+                )
+            losses_mat[k,i]=totalloss
+        losses[color]=totalloss/M
+        
+    print(losses_mat)
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Reconstruction")
