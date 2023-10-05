@@ -1,5 +1,5 @@
 ## Updated Cross-Modal 3D Shape Generation and Manipulation 
-
+[Project Report](Cross_Modal_Shape_Generation_Introspection.pdf)
 
 ### Contributions
 
