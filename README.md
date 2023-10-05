@@ -1,23 +1,6 @@
 ## Updated Cross-Modal 3D Shape Generation and Manipulation 
 [Project Report](Cross_Modal_Shape_Generation_Introspection.pdf)
 
-### Contributions
-
-Yejoon Jung: 
-
-wrote mesh_colorizor.py, modified save(), load_image_and_scribble(), edit(), and main() functions in edit_via_scribble.py. In addition,  all commits in `scribble-fix`, `edit-sketch-fix`, and `scribble-fix-stable`. 
-
-Hongyu Tu: 
-
-Loss function update in trainer_multimodal.py, fixes in edit_via_sketch_Hongyu.py based on Yejoon's `edit-sketch-fix`. 
-
-Svrcek: 
-Updated and fixed the import and preprocessing scripts including rewriting the render_blender_lines.py functionality which outputs a 
-numpy mesh as well as the images, the logic for the line art, and a small script convert_to_bw.py, and pulling in the sample_sdfs.py file from the dualsdf repo and updated it to allow
-iterating over the various shapenet files. I converted the repo into a module, and refactored most of the code to match 
-best practices and formatting.  I fixed numerous pathing issues and bugs caused by misnamed variables.  
-Lastly I added cpu support, and tried to clean up memory overuse when using gpu.  Also updated the conda dependencies.
-
 ### Installation
 
 ```
